@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>嶸鐿科技｜報價單系統</title>
+  <link rel="stylesheet" href="style.css" />
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">嶸鐿科技 報價系統</div>
+    <div id="userBadge" class="user-badge">驗證中…</div>
+  </header>
+
+  <nav class="tab-bar" role="tablist">
+    <button id="tabBtnForm" class="tab-btn active" type="button" data-tab="form">建立／修改報價</button>
+    <button id="tabBtnRecords" class="tab-btn" type="button" data-tab="records">報價紀錄</button>
+  </nav>
+
+  <div id="globalLoading" class="loading-box">
+    <div class="spinner"></div>
+    <div id="loadingText">正在驗證 LINE 身分並載入資料…</div>
+  </div>
+
+  <div id="globalError" class="alert-box alert-error hidden"></div>
+  <div id="globalNotice" class="alert-box alert-info hidden"></div>
+
+  <main id="mainApp" class="hidden">
+    <!-- ==================== 分頁一：報價表單 ==================== -->
+    <section id="paneForm" class="tab-pane">
+      <div id="modeBanner" class="mode-banner mode-create">新增報價</div>
+      <div id="sentBlockBanner" class="alert-box alert-warn hidden">
+        此報價單狀態為「已寄出」，不可修改原檔。
+        <button id="btnSwitchToRevise" type="button" class="btn btn-primary btn-sm" style="margin-top:10px;width:100%;">改用「改版」建立新版本</button>
+      </div>
+
+      <form id="quoteForm" novalidate>
+        <!-- 客戶區 -->
+        <div class="card">
+          <h2 class="card-title">1. 客戶資訊</h2>
+          <div class="field">
+            <label for="customerSelect">客戶名稱 <span class="req">*</span></label>
+            <select id="customerSelect" class="input"></select>
+            <div class="field-error" id="errCustomer"></div>
+          </div>
+
+          <div id="newCustomerBox" class="sub-card hidden">
+            <div class="sub-title">新客戶資料（將自動加入「客戶資料」）</div>
+            <div class="field">
+              <label for="newCustName">客戶簡稱／名稱 <span class="req">*</span></label>
+              <input id="newCustName" type="text" class="input" placeholder="例如：甲公司" />
+              <div class="field-error" id="errNewCustName"></div>
+            </div>
+            <div class="field">
+              <label for="newCustTaxId">統一編號 <span class="req">*</span></label>
+              <input id="newCustTaxId" type="text" inputmode="numeric" maxlength="8" class="input" placeholder="8 碼數字（不足會自動補 0）" />
+              <div class="field-error" id="errNewCustTaxId"></div>
+            </div>
+            <div class="field">
+              <label for="newCustContact">聯絡人</label>
+              <input id="newCustContact" type="text" class="input" placeholder="例如：王小明" />
+            </div>
+            <div class="field">
+              <label for="newCustPhone">聯絡電話</label>
+              <input id="newCustPhone" type="tel" class="input" placeholder="例如：04-12345678" />
+            </div>
+            <div class="field">
+              <label for="newCustEmail">Email</label>
+              <input id="newCustEmail" type="email" class="input" placeholder="例如：name@example.com" />
+            </div>
+            <div class="field">
+              <label for="newCustAddress">出貨／聯絡地址</label>
+              <input id="newCustAddress" type="text" class="input" placeholder="例如：台中市…" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 交期區 -->
+        <div class="card">
+          <h2 class="card-title">2. 交期（選填，將自動替換第 3 條備註）</h2>
+          <div class="chip-row" id="deliveryChips">
+            <button type="button" class="chip active" data-preset="">不變更</button>
+            <button type="button" class="chip" data-preset="2週">下單後2週</button>
+            <button type="button" class="chip" data-preset="1個月">下單後1個月</button>
+            <button type="button" class="chip" data-preset="2個月">下單後2個月</button>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label for="deliveryDate">或指定交貨日期</label>
+            <input id="deliveryDate" type="date" class="input" />
+          </div>
+        </div>
+
+        <!-- 品項區 -->
+        <div class="card">
+          <div class="card-head-row">
+            <h2 class="card-title">3. 報價品項</h2>
+            <span id="rowCounter" class="row-counter">已用 2 / 7 列</span>
+          </div>
+          <div id="rowLimitError" class="field-error" style="margin-bottom:10px;"></div>
+          <datalist id="itemSuggestions"></datalist>
+          <div id="itemsContainer"></div>
+          <button id="btnAddItem" type="button" class="btn btn-outline" style="width:100%;margin-top:8px;">＋ 新增品項</button>
+        </div>
+
+        <!-- 備註區 -->
+        <div class="card">
+          <h2 class="card-title">4. 備註（最多 3 列）</h2>
+          <div class="field">
+            <label for="note1">第 1 條</label>
+            <input id="note1" type="text" class="input" />
+          </div>
+          <div class="field">
+            <label for="note2">第 2 條</label>
+            <input id="note2" type="text" class="input" />
+          </div>
+          <div class="field">
+            <label for="note3">第 3 條</label>
+            <input id="note3" type="text" class="input" />
+          </div>
+        </div>
+
+        <!-- 即時總計與送出 -->
+        <div class="summary-bar">
+          <div class="sum-row"><span>未稅合計</span><strong id="sumSubtotal">0 元</strong></div>
+          <div class="sum-row"><span>營業稅 (5% 四捨五入)</span><strong id="sumTax">0 元</strong></div>
+          <div class="sum-row sum-total"><span>含稅總價</span><strong id="sumTotal">0 元</strong></div>
+          <button id="btnSubmit" type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:12px;">建立報價單</button>
+        </div>
+      </form>
+
+      <!-- 送出結果頁 -->
+      <div id="resultCard" class="card result-card hidden">
+        <div class="result-icon">✅</div>
+        <h2 id="resultTitle" class="result-title">已建立草稿</h2>
+        <div id="resultRemind" class="alert-box alert-warn hidden"></div>
+        <div class="result-info">
+          <div><span>單據編號</span><strong id="resNo">—</strong></div>
+          <div><span>含稅總價</span><strong id="resTotal">—</strong></div>
+        </div>
+        <a id="resDraftLink" href="#" target="_blank" rel="noopener" class="btn btn-outline btn-lg" style="width:100%;text-align:center;display:block;margin-top:12px;">開啟草稿試算表</a>
+        <button id="btnNewAnother" type="button" class="btn btn-secondary btn-lg" style="width:100%;margin-top:10px;">再建一張報價單</button>
+        <button id="btnCloseLiff" type="button" class="btn btn-primary btn-lg" style="width:100%;margin-top:10px;">關閉視窗</button>
+      </div>
+    </section>
+
+    <!-- ==================== 分頁二：報價紀錄 ==================== -->
+    <section id="paneRecords" class="tab-pane hidden">
+      <div class="card">
+        <div class="field">
+          <input id="recSearch" type="search" class="input" placeholder="搜尋單號或客戶名稱…" />
+        </div>
+        <div class="filter-grid">
+          <select id="recFilterCustomer" class="input"><option value="">全部客戶</option></select>
+          <select id="recFilterMonth" class="input"><option value="">全部月份</option></select>
+          <select id="recFilterStatus" class="input">
+            <option value="">全部狀態</option>
+            <option value="草稿">草稿</option>
+            <option value="已確認">已確認</option>
+            <option value="已寄出">已寄出</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="recordsStatus" class="records-status"></div>
+      <div id="recordsList"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
