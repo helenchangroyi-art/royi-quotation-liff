@@ -4,6 +4,6 @@
  * 所有資料存取皆由 GAS 後端以 LINE ID Token 驗證把關。
  */
 window.ROYI_CONFIG = {
-  LIFF_ID: '請填入您的_LIFF_ID',
+  LIFF_ID: '2012817355-G1S72c0X',
   GAS_API_URL: 'https://script.google.com/macros/s/AKfycbxjKhyQSZs0VYSf8Ojk-TydAgFEKSkWM-AFMoxgOmwKRQh8nP6bcnwkAn_5ILgipjst/exec'
 };
