@@ -806,6 +806,21 @@
     });
   }
 
+  /** 同時讀取一般 query 參數與 LINE LIFF 傳入的 liff.state（例如 ?liff.state=%3Ftab%3Drecords） */
+  function getLiffUrlParams() {
+    var direct = new URLSearchParams(window.location.search);
+    var liffState = direct.get('liff.state');
+    if (liffState) {
+      var qIdx = liffState.indexOf('?');
+      var qs = qIdx >= 0 ? liffState.slice(qIdx + 1) : liffState.replace(/^\/+/, '');
+      var nested = new URLSearchParams(qs);
+      nested.forEach(function (v, k) {
+        if (!direct.has(k)) direct.set(k, v);
+      });
+    }
+    return direct;
+  }
+
   async function boot() {
     bindEvents();
     if (!CFG.LIFF_ID || CFG.LIFF_ID.indexOf('請填入') >= 0 || !CFG.GAS_API_URL || CFG.GAS_API_URL.indexOf('請填入') >= 0) {
@@ -824,7 +839,7 @@
       var ctx = liff.getContext && liff.getContext();
       if (ctx && ctx.type === 'group' && ctx.groupId) state.contextGroupId = ctx.groupId;
 
-      var params = new URLSearchParams(window.location.search);
+      var params = getLiffUrlParams();
       var urlMode = params.get('mode');
       var urlNo = params.get('no') || '';
       var urlTab = params.get('tab') || '';
