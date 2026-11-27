@@ -24,6 +24,11 @@
 
   function fmtMoney(n) { return (Number(n) || 0).toLocaleString('en-US'); }
 
+  function excelUrlFromDraft(draftUrl) {
+    var m = String(draftUrl || '').match(/\/d\/([\w-]+)/) || String(draftUrl || '').match(/[?&]id=([\w-]+)/);
+    return m ? 'https://docs.google.com/spreadsheets/d/' + m[1] + '/export?format=xlsx' : '';
+  }
+
   function showLoading(text) {
     $('loadingText').textContent = text || '載入中…';
     $('globalLoading').classList.remove('hidden');
@@ -471,25 +476,6 @@
     return ok;
   }
 
-  async function notifyChatRoom(mode, quoteNo) {
-    var prefix = mode === 'edit' ? '表單修改 ' : (mode === 'revise' ? '表單改版 ' : '表單建立 ');
-    var sent = false;
-    try {
-      if (liff.isInClient()) {
-        await liff.sendMessages([{ type: 'text', text: prefix + quoteNo }]);
-        sent = true;
-      }
-    } catch (e) {
-      sent = false;
-    }
-    if (!sent) {
-      // 降級改用 push（失敗不影響報價單建立）
-      try {
-        await callGas('notifyFallback', { no: quoteNo, mode: mode, groupId: state.contextGroupId }, false);
-      } catch (e2) { /* ignore */ }
-    }
-  }
-
   async function onSubmitForm(e) {
     e.preventDefault();
     showError('');
@@ -540,9 +526,7 @@
         remindEl.classList.add('hidden');
       }
 
-      state.allRecords = null; // 讓紀錄分頁下次開啟重新載入
-      // 優先 sendMessages，失敗再降級 push（不阻斷結果顯示）
-      notifyChatRoom(state.mode, res.quoteNo);
+      state.allRecords = null; // 讓紀錄分頁下次開啟重新載入（結果卡片已由 GAS 直接推送到群組）
     } catch (err) {
       hideLoading();
       if (err && err.message === 'TOKEN_REFRESHING') return;
@@ -626,18 +610,22 @@
       var stCls = r.status === '已確認' ? 'status-confirmed' : (r.status === '已寄出' ? 'status-sent' : '');
       card.className = 'rec-card ' + stCls;
 
+      var excelUrl = excelUrlFromDraft(r.draftUrl);
       var btnsHtml = '';
       if (r.status === '草稿') {
         if (r.draftUrl) btnsHtml += '<a class="btn btn-secondary btn-sm" href="' + r.draftUrl + '" target="_blank" rel="noopener">開草稿</a>';
+        if (excelUrl) btnsHtml += '<a class="btn btn-secondary btn-sm" href="' + excelUrl + '" target="_blank" rel="noopener">下載 Excel</a>';
         btnsHtml += '<button type="button" class="btn btn-secondary btn-sm act-edit">用表單修改</button>';
         btnsHtml += '<button type="button" class="btn btn-primary btn-sm act-confirm">確認產生 PDF</button>';
       } else if (r.status === '已確認') {
         if (r.draftUrl) btnsHtml += '<a class="btn btn-secondary btn-sm" href="' + r.draftUrl + '" target="_blank" rel="noopener">開草稿</a>';
         if (r.pdfUrl) btnsHtml += '<a class="btn btn-secondary btn-sm" href="' + r.pdfUrl + '" target="_blank" rel="noopener">開 PDF</a>';
+        if (excelUrl) btnsHtml += '<a class="btn btn-secondary btn-sm" href="' + excelUrl + '" target="_blank" rel="noopener">下載 Excel</a>';
         btnsHtml += '<button type="button" class="btn btn-secondary btn-sm act-edit">用表單修改</button>';
         btnsHtml += '<button type="button" class="btn btn-primary btn-sm act-sent">已寄出</button>';
       } else {
         if (r.pdfUrl) btnsHtml += '<a class="btn btn-secondary btn-sm" href="' + r.pdfUrl + '" target="_blank" rel="noopener">開 PDF</a>';
+        if (excelUrl) btnsHtml += '<a class="btn btn-secondary btn-sm" href="' + excelUrl + '" target="_blank" rel="noopener">下載 Excel</a>';
         btnsHtml += '<button type="button" class="btn btn-primary btn-sm act-revise">改版</button>';
       }
 
@@ -800,6 +788,14 @@
       else window.close();
     });
 
+    $('btnAddShortcut').addEventListener('click', async function () {
+      try {
+        await liff.createShortcutOnHomeScreen({ url: 'https://liff.line.me/' + CFG.LIFF_ID });
+      } catch (err) {
+        window.alert('無法建立桌面捷徑：' + (err && err.message || err));
+      }
+    });
+
     ['recSearch', 'recFilterCustomer', 'recFilterMonth', 'recFilterStatus'].forEach(function (id) {
       $(id).addEventListener('input', renderRecords);
       $(id).addEventListener('change', renderRecords);
@@ -838,6 +834,10 @@
 
       var ctx = liff.getContext && liff.getContext();
       if (ctx && ctx.type === 'group' && ctx.groupId) state.contextGroupId = ctx.groupId;
+
+      if (liff.isApiAvailable && liff.isApiAvailable('createShortcutOnHomeScreen') && typeof liff.createShortcutOnHomeScreen === 'function') {
+        $('btnAddShortcut').classList.remove('hidden');
+      }
 
       var params = getLiffUrlParams();
       var urlMode = params.get('mode');
